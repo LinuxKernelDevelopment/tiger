@@ -1,0 +1,154 @@
+Compiling files..
+Compiled successfully
+Running tests..
+Testing ../testcases/merge.tig
+Success
+----
+Testing ../testcases/queens.tig
+Success
+----
+Testing ../testcases/test10.tig
+Success
+----
+Testing ../testcases/test11.tig
+Success
+----
+Testing ../testcases/test12.tig
+Success
+----
+Testing ../testcases/test13.tig
+Success
+----
+Testing ../testcases/test14.tig
+Success
+----
+Testing ../testcases/test15.tig
+Success
+----
+Testing ../testcases/test16.tig
+Success
+----
+Testing ../testcases/test17.tig
+Success
+----
+Testing ../testcases/test18.tig
+Success
+----
+Testing ../testcases/test19.tig
+Success
+----
+Testing ../testcases/test1.tig
+Success
+----
+Testing ../testcases/test20.tig
+Success
+----
+Testing ../testcases/test21.tig
+Success
+----
+Testing ../testcases/test22.tig
+Success
+----
+Testing ../testcases/test23.tig
+Success
+----
+Testing ../testcases/test24.tig
+Success
+----
+Testing ../testcases/test25.tig
+Success
+----
+Testing ../testcases/test26.tig
+Success
+----
+Testing ../testcases/test27.tig
+Success
+----
+Testing ../testcases/test28.tig
+Success
+----
+Testing ../testcases/test29.tig
+Success
+----
+Testing ../testcases/test2.tig
+Success
+----
+Testing ../testcases/test30.tig
+Success
+----
+Testing ../testcases/test31.tig
+Success
+----
+Testing ../testcases/test32.tig
+Success
+----
+Testing ../testcases/test33.tig
+Success
+----
+Testing ../testcases/test34.tig
+Success
+----
+Testing ../testcases/test35.tig
+Success
+----
+Testing ../testcases/test36.tig
+Success
+----
+Testing ../testcases/test37.tig
+Success
+----
+Testing ../testcases/test38.tig
+Success
+----
+Testing ../testcases/test39.tig
+Success
+----
+Testing ../testcases/test3.tig
+Success
+----
+Testing ../testcases/test40.tig
+Success
+----
+Testing ../testcases/test41.tig
+Success
+----
+Testing ../testcases/test42.tig
+Success
+----
+Testing ../testcases/test43.tig
+Success
+----
+Testing ../testcases/test44.tig
+Success
+----
+Testing ../testcases/test45.tig
+Success
+----
+Testing ../testcases/test46.tig
+Success
+----
+Testing ../testcases/test47.tig
+Success
+----
+Testing ../testcases/test48.tig
+Success
+----
+Testing ../testcases/test4.tig
+Success
+----
+Testing ../testcases/test5.tig
+Success
+----
+Testing ../testcases/test6.tig
+Success
+----
+Testing ../testcases/test7.tig
+Success
+----
+Testing ../testcases/test8.tig
+Success
+----
+Testing ../testcases/test9.tig
+Success
+----
+Tests run successfully

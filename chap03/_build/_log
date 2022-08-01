@@ -1,0 +1,28 @@
+### Starting build.
+# Target: parse.ml.depends, tags: { extension:ml, file:parse.ml, ocaml, ocamldep, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamldep.opt -modules parse.ml > parse.ml.depends # cached
+# Target: errorMsg.ml.depends, tags: { extension:ml, file:errorMsg.ml, ocaml, ocamldep, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamldep.opt -modules errorMsg.ml > errorMsg.ml.depends # cached
+# Target: errorMsg.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:errorMsg.cmo, file:errorMsg.ml, implem, ocaml, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt -c -o errorMsg.cmo errorMsg.ml # cached
+# Target: lexer.mll, tags: { extension:mll, file:lexer.mll, lexer, ocaml, ocamllex, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamllex.opt -q lexer.mll # cached
+# Target: lexer.ml.depends, tags: { extension:ml, file:lexer.ml, ocaml, ocamldep, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamldep.opt -modules lexer.ml > lexer.ml.depends # cached
+# Target: parser.mly, tags: { extension:mly, file:parser.mly, infer, ocaml, ocamlyacc, parser, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlyacc parser.mly # cached
+# Target: parser.mli.depends, tags: { extension:mli, file:parser.mli, ocaml, ocamldep, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamldep.opt -modules parser.mli > parser.mli.depends # cached
+# Target: parser.cmi, tags: { byte, compile, extension:mli, file:parser.mli, interf, ocaml, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt -c -o parser.cmi parser.mli # cached
+# Target: lexer.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:lexer.cmo, file:lexer.ml, implem, ocaml, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt -c -o lexer.cmo lexer.ml # cached
+# Target: parse.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:parse.cmo, file:parse.ml, implem, ocaml, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt -c -o parse.cmo parse.ml # cached
+# Target: parser.ml.depends, tags: { extension:ml, file:parser.ml, ocaml, ocamldep, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamldep.opt -modules parser.ml > parser.ml.depends # cached
+# Target: parser.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:parser.cmo, file:parser.ml, implem, ocaml, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt -c -o parser.cmo parser.ml # cached
+# Target: parse.byte, tags: { byte, dont_link_with, extension:byte, file:parse.byte, link, ocaml, program, quiet, traverse }
+/home/hmsjwzb/.opam/cs3110-2021fa/bin/ocamlc.opt errorMsg.cmo parser.cmo lexer.cmo parse.cmo -o parse.byte # cached
+# Compilation successful.
