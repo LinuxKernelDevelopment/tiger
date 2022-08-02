@@ -172,3 +172,63 @@ and trans_exp venv tenv break level exp =
               Error_msg.error pos (Error_msg.Undefined_record (S.name ty_id));
               {exp = Translate.unit_exp; ty = T.RECORD([], ref ())}
         end
+    | A.SeqExp (exps) ->
+        let (exps, ty) = List.fold_left
+            (fun (exps, _) (e, _) -> let {exp; ty} = trexp e in (exps @ [exp], ty))
+            ([], T.UNIT)
+            exps in
+          {exp = Translate.seq_exp exps; ty}
+    | A.AssignExp (var, exp, legal, pos) ->
+        if not !legal then Error_msg.error pos Error_msg.Illegal_assignment;
+        let {exp = var_exp; ty} = trans_var venv tenv break level var in
+        let {exp = val_exp; _} as val_expty = trexp exp in
+          check_expty ty val_expty pos;
+          {exp = Translate.assign_exp var_exp val_exp; ty = T.UNIT}
+    | A.IfExp (test, conseq, Some alt, pos) ->
+        let {exp = test_exp; _} as test_expty = trexp test in
+        let {exp = conseq_exp; ty = conseq_ty} = trexp conseq in
+        let {exp = alt_exp; _} as alt_expty = trexp alt in
+          checkint test_expty pos;
+          check_expty conseq_ty alt_expty pos;
+          {exp = Translate.if_exp3 test_exp conseq_exp alt_exp; ty = conseq_ty}
+    | A.ForExp (var, escape, lo, hi, body, pos) ->
+        let limit_sym = Symbol.symbol "*limit*" in
+        let lo_sym = Symbol.symbol "*lo*" in
+        let hi_sym = Symbol.symbol "*hi*" in
+        let decs = [A.VarDec {A.vardec_name = lo_sym;
+                              vardec_escape = ref false;
+                              vardec_ty = None;
+                              vardec_init = lo;
+                              vardec_pos = pos};
+                    A.VarDec {A.vardec_name = hi_sym;
+                              vardec_escape = ref false;
+                              vardec_ty = None;
+                              vardec_init = hi;
+                              vardec_pos = pos};
+                    A.VarDec {A.vardec_name = var;
+                              vardec_escape = escape;
+                              vardec_ty = None;
+                              vardec_init = A.VarExp (A.SimpleVar (lo_sym, pos));
+                              vardec_pos = pos};
+                    A.VarDec {A.vardec_name = limit_sym;
+                              vardec_escape = ref false;
+                              vardec_ty = None;
+                              vardec_init = A.VarExp (A.SimpleVar (hi_sym, pos));
+                              vardec_pos = pos}] in
+        let body' = A.IfExp (
+            A.OpExp (A.VarExp (A.SimpleVar (lo_sym, pos)), A.LeOp, A.VarExp (A.SimpleVar (hi_sym, pos)), pos),
+            A.WhileExp (
+              A.IntExp 1,
+              A.SeqExp [
+                (A.IfExp (A.IntExp 1, body, None, pos), pos);
+                (A.IfExp (
+                   A.OpExp (A.VarExp (A.SimpleVar (var, pos)), A.LtOp, A.VarExp (A.SimpleVar (limit_sym, pos)), pos),
+                   A.AssignExp (A.SimpleVar (var, pos), A.OpExp (A.VarExp (A.SimpleVar (var, pos)), A.PlusOp, A.IntExp 1, pos), ref true, pos),
+                   pos
+                   ), pos)
+              ],
+              pos
+            ),
+            None,
+            pos) in
+          trexp (A.LetExp (decs, body', pos))
