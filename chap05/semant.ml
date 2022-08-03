@@ -232,3 +232,181 @@ and trans_exp venv tenv break level exp =
             None,
             pos) in
           trexp (A.LetExp (decs, body', pos))
+    | A.BreakExp pos ->
+        begin
+          match break with
+            Some donelab ->
+              {exp = Translate.break_exp donelab; ty = T.UNIT}
+          | None ->
+              Error_msg.error pos Error_msg.Illegal_break;
+              {exp = Translate.unit_exp; ty = T.UNIT}
+        end
+    | A.LetExp (decs, body, _) ->
+        let {venv = venv'; tenv = tenv'; exps = assign_exps} = List.fold_left
+            (fun {venv; tenv; exps} d ->
+               let {venv = venv'; tenv = tenv'; exps = exps'} = trans_dec venv tenv break level d in
+                 {venv = venv'; tenv = tenv'; exps = exps @ exps'})
+            {venv; tenv; exps = []}
+            decs in
+        let {ty; exp = body_exp} = trans_exp venv' tenv' break level body in
+          {exp = Translate.let_exp assign_exps body_exp; ty}
+    | A.ArrayExp (ty_id, size, init, pos) ->
+        begin
+          match S.look ty_id tenv with
+          | Some ty ->
+              begin
+                match actual_ty ty with
+                | T.ARRAY (elem_ty, _) as array_ty ->
+                    let {exp = size_exp; _} as size_expty = trexp size in
+                    let {exp = init_exp; _} as init_expty = trexp init in
+                      checkint size_expty pos;
+                      check_expty (actual_ty elem_ty) init_expty pos;
+                      {exp = Translate.array_exp size_exp init_exp; ty = array_ty}
+                | ty ->
+                    Error_msg.error pos (Error_msg.Type_mismatch ("array", T.string_of_ty ty));
+                    {exp = Translate.unit_exp; ty = T.ARRAY (T.INT, ref ())}
+              end
+          | None ->
+              Error_msg.error pos (Error_msg.Undefined_array (S.name ty_id));
+              {exp = Translate.unit_exp; ty = T.ARRAY (T.INT, ref ())}
+        end
+
+  in trexp exp
+
+and trans_dec venv tenv break level = function
+  | A.VarDec {A.vardec_name; vardec_ty; vardec_init; vardec_pos; vardec_escape} ->
+      let access = Translate.alloc_local level !vardec_escape in
+      let {exp; ty} as expty = trans_exp venv tenv break level vardec_init in
+      let venv' =
+        match vardec_ty with
+        | None ->
+            if ty = T.NIL then
+              Error_msg.error vardec_pos Error_msg.Unconstrained_nil;
+            S.enter vardec_name (Env.VarEntry (access, ty)) venv;
+        | Some (ty_id, ty_pos) ->
+            match S.look ty_id tenv with
+            | Some ty ->
+                let actual = actual_ty ty in
+                  check_expty actual expty vardec_pos;
+                  S.enter vardec_name (Env.VarEntry (access, actual)) venv
+            | None ->
+                Error_msg.error ty_pos (Error_msg.Undefined_type (S.name ty_id));
+                S.enter vardec_name (Env.VarEntry (access, T.INT)) venv in
+      let assign_exp = Translate.assign_exp (Translate.simple_var access level) exp in
+        {venv = venv'; tenv; exps = [assign_exp]}
+  | A.TypeDec tydecs ->
+      let checkdups () =
+        let rec loop seen = function
+          | [] -> ()
+          | {A.tydec_name; tydec_pos; _} :: xs ->
+              if List.mem tydec_name seen
+              then Error_msg.error tydec_pos (Error_msg.Duplicate_type_declaration (S.name tydec_name));
+              loop (tydec_name :: seen) xs in
+          loop [] tydecs in
+      let nametys = List.map (fun {A.tydec_name; _} ->
+          T.NAME (tydec_name, ref None))
+          tydecs in
+      let tenv' = List.fold_left
+          (fun tenv namety -> match namety with
+             | T.NAME (name, ty) as namety ->
+                 S.enter name namety tenv
+             | _ -> Error_msg.impossible "expected name type")
+          tenv
+          nametys in
+      let actualtys = List.map (fun {A.tydec_ty; _ } ->
+          trans_ty tenv' tydec_ty)
+          tydecs in
+
+        List.iter2 (fun namety actualty -> match namety with
+            | T.NAME (name, ty) ->
+                ty := Some actualty
+            | _ -> Error_msg.impossible "expected name type")
+          nametys
+          actualtys;
+
+        let checkcycles () -
+          let edges = List.map (fun {A.tydec_name; tydec_ty; _} ->
+              match tydec_ty with
+              | A.NameTy (tyid, pos) ->
+                  (match S.look tyid tenv' with
+                   | Some (T.NAME (id, ty)) -> (tydec_name, Some id)
+                   | _ -> (tydec_name, None))
+              | _ -> (tydec_name, None))
+              tydecs in
+            List.iter
+              (fun {A.tydec_name; tydec_pos; _} ->
+                 let rec visit seen = function
+                   | None -> ()
+                   | Some v ->
+                       if List.mem v seen
+                       then Error_msg.error tydec_pos Error_msg.Illegal_cycle_in_type_declaration
+                       else visit (v :: seen) (List.assoc v edges) in
+                   visit [] (Some tydec_name))
+             tydecs in
+
+        checkdups ();
+        checkcycles ();
+        {venv; tenv = tenv'; exps = []}
+
+  | A.FunctionDec fundecs ->
+      let checkdups () =
+        let rec loop seen = function
+          | [] -> ()
+          | {A.fundec_name; fundec_pos; _} :: xs ->
+              if List.mem fundec_name seen then
+                Error_msg.error fundec_pos (Error_msg.Duplicate_type_declaration (S.name fundec_name));
+              loop (fundec_name :: seen) xs in
+          loop [] fundecs in
+
+      let header {A.fundec_name; fundec_params; fundec_result; _} =
+        let trparam {A.ty=paramtyid; pos=paramtypos; _} =
+          match S.look paramtyod tenv with
+          | None ->
+              Error_msg.error paramtypos (Error_msg.Undefined_type (S.name paramtyid));
+              T.INT
+          | Some paramty -> actual_ty paramty in
+        let resultty =
+          match fundec_result with
+          | None -> T.UNIT
+          | Some (resulttyid, resulttypos) ->
+              match S.look resulttyid tenv with
+              | None ->
+                  Error_msg.error resulttypos (Error_msg.Undefined_type (S.name resulttyid));
+              | Some resultty ->
+                  actual_ty resultty in
+        let paramtys = List.map trparam fundec_params in
+        let label = Temp.new_label () in
+        let formal_escapes = List.map (fun {A.escape; _} -> !escape) fundec_params in
+        let level' = Translate.new_level level label formal_escapes in
+          (fundec_name, paramtys, resultty, label, level') in
+
+      let headers = List.map header fundecs in
+
+      let venv' =
+        List.fold_left
+          (fun venv (name, paramtys, resultty, label, level') ->
+             S.enter name (Env.FunEntry (level', label, paramtys, resultty)) venv)
+          venv
+          headers in
+
+        List.iter2
+          (fun (name, param_tys, result_ty, _, level') {A.fundec_body; A.fundec_params; fundec_pos; _} ->
+             let accesses = Translate.formals level' in
+             let params = List.map2
+                 (fun {A.name; _} ty -> (name, ty))
+                 fundec_params
+                 param_tys in
+             let venv'' = List.fold_left2
+                 (fun venv (name, ty) access -> S.enter name (Env.VarEntry (access, ty)) venv)
+                 venv'
+                 params
+                 accesses in
+             let {exp = body_exp; _} as body_expty = trans_exp venv'' tenv break level' fundec_body in
+               check_expty result_ty body_expty fundec_pos;
+               Translat.proc_entry_exit level' body_exp)
+          headers
+          fundecs;
+
+          checkdup ();
+
+          {venv=venv'; tenv; exps = []}
