@@ -7,7 +7,7 @@ type tenv = Types.t Symbol.table
 type expty = {exp: Translate.exp; ty: Types.t}
 type decenv = {venv: venv; tenv: tenv; exps: Translate.exp list}
 
-let checkexpty ty1 {exp; ty=ty2} pos =
+let check_expty ty1 {exp; ty=ty2} pos =
   match ty1, ty2 with
   | T.RECORD _ , T.NIL      -> ()
   | T.NIL      , T.RECORD _ -> ()
@@ -113,7 +113,7 @@ and trans_exp venv tenv break level exp =
                else
                  let arg_exps = List.map2
                      (fun formal_ty arg ->
-                        let {exp; _ } as expty = trexp arg in check_expty formal_ty expty pos; exp)                     formal_tys
+                        let {exp; _ } as expty = trexp arg in check_expty formal_ty expty pos; exp)                           formal_tys
                      args in
                     {exp = Translate.call_exp flevel level label arg_exps; ty = result_ty}
           | _ ->
@@ -184,6 +184,12 @@ and trans_exp venv tenv break level exp =
         let {exp = val_exp; _} as val_expty = trexp exp in
           check_expty ty val_expty pos;
           {exp = Translate.assign_exp var_exp val_exp; ty = T.UNIT}
+    | A.IfExp (test, conseq, None, pos) ->
+        let {exp = test_exp; _} as test_expty = trexp test in
+        let {exp = conseq_exp; _} as conseq_expty = trexp conseq in
+          checkint test_expty pos;
+          checkunit conseq_expty pos;
+          {exp = Translate.if_exp2 test_exp conseq_exp; ty = T.UNIT}
     | A.IfExp (test, conseq, Some alt, pos) ->
         let {exp = test_exp; _} as test_expty = trexp test in
         let {exp = conseq_exp; ty = conseq_ty} = trexp conseq in
@@ -191,6 +197,13 @@ and trans_exp venv tenv break level exp =
           checkint test_expty pos;
           check_expty conseq_ty alt_expty pos;
           {exp = Translate.if_exp3 test_exp conseq_exp alt_exp; ty = conseq_ty}
+    | A.WhileExp (test, body, pos) ->
+        let done_label = Temp.new_label () in
+        let {exp = test_exp; _ } as test_expty = trexp test in
+        let {exp = body_exp; _ } as body_expty = trans_exp venv tenv (Some done_label) level body in
+          checkint test_expty pos;
+          checkunit body_expty pos;
+          {exp = Translate.while_exp test_exp body_exp done_lable; ty = T.UNIT}
     | A.ForExp (var, escape, lo, hi, body, pos) ->
         let limit_sym = Symbol.symbol "*limit*" in
         let lo_sym = Symbol.symbol "*lo*" in
@@ -224,6 +237,7 @@ and trans_exp venv tenv break level exp =
                 (A.IfExp (
                    A.OpExp (A.VarExp (A.SimpleVar (var, pos)), A.LtOp, A.VarExp (A.SimpleVar (limit_sym, pos)), pos),
                    A.AssignExp (A.SimpleVar (var, pos), A.OpExp (A.VarExp (A.SimpleVar (var, pos)), A.PlusOp, A.IntExp 1, pos), ref true, pos),
+                       (A.           pos),
                    pos
                    ), pos)
               ],
@@ -403,10 +417,41 @@ and trans_dec venv tenv break level = function
                  accesses in
              let {exp = body_exp; _} as body_expty = trans_exp venv'' tenv break level' fundec_body in
                check_expty result_ty body_expty fundec_pos;
-               Translat.proc_entry_exit level' body_exp)
+               Translate.proc_entry_exit level' body_exp)
           headers
           fundecs;
 
-          checkdup ();
+          checkdups ();
 
           {venv=venv'; tenv; exps = []}
+
+and trans_ty tenv = function
+  | A.NameTy (ty, pos) ->
+      begin
+        match S.look ty tenv with
+        | None ->
+            Error_msg.error pos (Error_msg.Undefined_type (S.name ty));
+            T.INT
+        | Some ty' -> ty'
+      end
+  | A.RecordTy fields ->
+      let trfield {A.name; escape; ty pos} =
+        let fieldty = match S.look ty tenv with
+          | None -> Error_msg.error pos (Error_msg.Undefined_type (S.name ty));
+              T.INT
+          | Some ty -> ty in
+        T.RECORD (List.map trfield fields, ref ())
+  | A.ArrayTy (ty, pos) ->
+      let elem_ty = match S.look ty tenv with
+        | None ->
+            Error_msg.error pos (Error_msg.Undefined_type (S.name ty));
+            T.INT
+        | Some ty' -> ty' in
+        T.ARRAY (elem_ty, ref ())
+
+let trans_prog exp =
+        let level = Translate.new_level Translate.outermost (Temp.named_label "t_main") [] in
+        let {exp; _} = trans_exp Env.base_venv Env.base_tenv None level exp in
+          Translate.proc_entry_exit level exp;
+          Translate.get_result ()
+
